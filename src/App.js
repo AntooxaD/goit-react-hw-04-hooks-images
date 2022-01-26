@@ -1,7 +1,7 @@
 import "./App.css";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { Component } from "react";
+import { useState, useEffect } from "react";
 import Searchbar from "./сomponents/Searchbar/Searchbar";
 import ImageGallery from "./сomponents/ImageGallery/ImageGallery";
 import api from "./service/Api/Api";
@@ -9,70 +9,63 @@ import Button from "./сomponents/Button/Button";
 import Modal from "./сomponents/Modal/Modal";
 import LoaderSpin from "./сomponents/Loader/Loader";
 
-export default class App extends Component {
-  state = {
-    searchQuery: ``,
-    images: [],
-    loading: false,
-    error: null,
-    openModal: false,
-    selectedImage: null,
-    page: 1,
-    fetchLength: "",
-  };
+export default function App() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [openModal, setOpenModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [page, setPage] = useState(1);
+  const [fetchLength, setFetchImages] = useState("");
 
-  async componentDidUpdate(prevProps, prevState) {
-    if (
-      prevState.searchQuery !== this.state.searchQuery ||
-      prevState.page !== this.state.page
-    ) {
-      await this.fetchImg();
+  useEffect(() => {
+    if (setSearchQuery(searchQuery) || setPage(page)) {
+      fetchImg();
     }
-  }
-  fetchImg = async () => {
+  }, [searchQuery]);
+
+  const fetchImg = async () => {
     const { searchQuery, page } = this.state;
-    this.setState({ loading: true });
+    setLoading(!loading);
     api
       .fetchImages(searchQuery, page)
       .then(({ hits }) => {
         if (hits.length === 0) {
-          this.setState({ hits: null });
+          setImages(null);
           return toast.error(
             `Не удалось найти картинку по запросу ${searchQuery}`
           );
         }
 
-        this.setState(({ images, page }) => ({
-          images: [...images, ...hits],
-          page: page,
-          fetchLength: hits.length,
-        }));
+        setImages([...images, ...hits]);
+        setPage(page);
+        setFetchImages(hits.length);
       })
-      .catch((error) => this.setState({ error: "Побробуйте снова" }))
+      .catch((error) => setError({ error: "Побробуйте снова" }))
       .finally(() => {
-        this.setState({ loading: false });
-        console.log(this.state.images);
+        setLoading(true);
       });
   };
-  handleImageClick = (e) => {
+
+  const handleImageClick = (e) => {
     if (!e.target.matches("img")) return;
     e.preventDefault();
-    this.setState({
-      openModal: true,
-      selectedImage: e.target.dataset.source,
-    });
+
+    setOpenModal(true);
+    setSelectedImage(e.target.dataset.source);
   };
 
-  closeModal = () => {
-    this.setState({ openModal: false });
+  const closeModal = () => {
+    setOpenModal(openModal);
   };
 
-  handleLoadMoreBnt = (hits) => {
-    this.setState({ page: this.state.page + 1 });
-    this.scrolling();
+  const handleLoadMoreBnt = () => {
+    setPage(page + 1);
+    scrolling();
   };
 
-  scrolling = () => {
+  const scrolling = () => {
     setTimeout(() => {
       window.scrollBy({
         top: document.documentElement.scrollHeight,
@@ -81,43 +74,39 @@ export default class App extends Component {
     }, 500);
   };
 
-  handleSubmit = (searchQuery) => {
-    this.setState({ searchQuery, images: [], page: 1, error: null });
+  const handleSubmit = (searchQuery) => {
+    setSearchQuery(searchQuery);
+    setPage(1);
+    setImages([]);
+    setError(error);
   };
 
-  render() {
-    const { images, error, loading, openModal, selectedImage, fetchLength } =
-      this.state;
+  return (
+    <div className="App">
+      <Searchbar onSubmit={handleSubmit} />
+      {loading && <LoaderSpin />}
+      {images.length > 0 && !error && (
+        <>
+          <ImageGallery openModal={handleImageClick} images={images} />
 
-    return (
-      <div className="App">
-        <Searchbar onSubmit={this.handleSubmit} />
-        {loading && <LoaderSpin />}
-        {images.length > 0 && !error && (
-          <>
-            <ImageGallery openModal={this.handleImageClick} images={images} />
+          {images && images.length >= 11 && fetchLength === 12 && (
+            <Button onClick={handleLoadMoreBnt} />
+          )}
+        </>
+      )}
+      {openModal && <Modal onClose={closeModal} src={selectedImage}></Modal>}
 
-            {images && images.length >= 11 && fetchLength === 12 && (
-              <Button onClick={this.handleLoadMoreBnt} />
-            )}
-          </>
-        )}
-        {openModal && (
-          <Modal onClose={this.closeModal} src={selectedImage}></Modal>
-        )}
-
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-        />
-      </div>
-    );
-  }
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+    </div>
+  );
 }
