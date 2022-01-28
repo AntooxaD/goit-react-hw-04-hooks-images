@@ -17,36 +17,43 @@ export default function App() {
   const [openModal, setOpenModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [page, setPage] = useState(1);
-  const [fetchLength, setFetchImages] = useState("");
+  const [hideBtn, setHideBtn] = useState(false);
 
   useEffect(() => {
-    if (setSearchQuery(searchQuery) || setPage(page)) {
-      fetchImg();
-    }
-  }, [searchQuery]);
+    const fetchImg = async () => {
+      if (searchQuery === "") {
+        return;
+      }
+      setLoading(false);
 
-  const fetchImg = async () => {
-    const { searchQuery, page } = this.state;
-    setLoading(!loading);
-    api
-      .fetchImages(searchQuery, page)
-      .then(({ hits }) => {
-        if (hits.length === 0) {
-          setImages(null);
-          return toast.error(
-            `Не удалось найти картинку по запросу ${searchQuery}`
-          );
-        }
+      api
+        .fetchImages(searchQuery, page)
+        .then(({ hits }) => {
+          if (hits.length === 0) {
+            setHideBtn(true);
+            setImages([]);
+            return toast.error(
+              `Не удалось найти картинку по запросу ${searchQuery}`
+            );
+          }
 
-        setImages([...images, ...hits]);
-        setPage(page);
-        setFetchImages(hits.length);
-      })
-      .catch((error) => setError({ error: "Побробуйте снова" }))
-      .finally(() => {
-        setLoading(true);
-      });
-  };
+          setImages([...images, ...hits]);
+          setPage(page);
+          if (hits.length < 12) {
+            setHideBtn(true);
+          }
+          if (hits.length === 12) {
+            setHideBtn(false);
+          }
+        })
+        .catch((error) => setError({ error: "Побробуйте снова" }))
+        .finally(() => {
+          setLoading(false);
+        });
+    };
+    fetchImg();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, searchQuery]);
 
   const handleImageClick = (e) => {
     if (!e.target.matches("img")) return;
@@ -57,7 +64,7 @@ export default function App() {
   };
 
   const closeModal = () => {
-    setOpenModal(openModal);
+    setOpenModal(false);
   };
 
   const handleLoadMoreBnt = () => {
@@ -74,11 +81,14 @@ export default function App() {
     }, 500);
   };
 
-  const handleSubmit = (searchQuery) => {
-    setSearchQuery(searchQuery);
+  const handleSubmit = (query) => {
+    if (query === searchQuery) {
+      return;
+    }
+    setSearchQuery(query);
     setPage(1);
-    setImages([]);
     setError(error);
+    setImages([]);
   };
 
   return (
@@ -89,9 +99,7 @@ export default function App() {
         <>
           <ImageGallery openModal={handleImageClick} images={images} />
 
-          {images && images.length >= 11 && fetchLength === 12 && (
-            <Button onClick={handleLoadMoreBnt} />
-          )}
+          {hideBtn || <Button onClick={handleLoadMoreBnt} />}
         </>
       )}
       {openModal && <Modal onClose={closeModal} src={selectedImage}></Modal>}
@@ -106,6 +114,7 @@ export default function App() {
         pauseOnFocusLoss
         draggable
         pauseOnHover
+        theme="colored"
       />
     </div>
   );
